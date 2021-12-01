@@ -6,8 +6,11 @@ import (
 	"os"
 )
 
+var IP = "0.0.0.0"
+var PORT = "5000"
+
 func StartServer() {
-	l, err := net.Listen("tcp", "0.0.0.0:5000")
+	l, err := net.Listen("tcp", fmt.Sprintf("%s:%s", IP, PORT))
 
 	if err != nil {
 		fmt.Println(err)
@@ -17,7 +20,7 @@ func StartServer() {
 	// Close the listener when the application closes.
 	defer l.Close()
 
-	fmt.Println("-- started server")
+	fmt.Println("> Server started ")
 
 	for {
 		// Listening for connections
