@@ -4,12 +4,21 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"time"
 )
 
 var IP = "0.0.0.0"
 var PORT = "5000"
 
-func StartServer() {
+type Client struct {
+	conn net.Conn
+}
+
+type Server struct {
+	clients []Client
+}
+
+func (s *Server) StartServer() {
 	l, err := net.Listen("tcp", fmt.Sprintf("%s:%s", IP, PORT))
 
 	if err != nil {
@@ -20,7 +29,7 @@ func StartServer() {
 	// Close the listener when the application closes.
 	defer l.Close()
 
-	fmt.Println("> Server started ")
+	fmt.Println("[TCP] > Server started ")
 
 	for {
 		// Listening for connections
@@ -30,29 +39,38 @@ func StartServer() {
 			fmt.Println("Error accepting: ", err.Error())
 			os.Exit(1)
 		} else {
-			fmt.Println("connected")
+			fmt.Printf("[TCP] > New connection: %s \n", conn.LocalAddr())
 		}
 
-		// Handle connections in a new goroutine.
-		go handleRequest(conn)
+		s.clients = append(s.clients, Client{conn: conn})
+
+		go keepAlive(conn)
+	}
+}
+
+func keepAlive(conn net.Conn) {
+	for range time.Tick(time.Second * 1) {
+		conn.Write([]byte("0"))
 	}
 }
 
 // Handles incoming requests.
-func handleRequest(conn net.Conn) {
-	// Make a buffer to hold incoming data.
-	buf := make([]byte, 1024)
+func (s *Server) GetClients() []net.Conn {
+	var connections []net.Conn
 
-	// Read the incoming connection into the buffer.
-	reqLen, err := conn.Read(buf)
-
-	fmt.Println(reqLen)
-
-	if err != nil {
-		fmt.Println("Error reading:", err.Error())
+	for _, client := range s.clients {
+		connections = append(connections, client.conn)
 	}
-	// Send a response back to person contacting us.
-	conn.Write([]byte("Message received."))
-	// Close the connection when you're done with it.
-	conn.Close()
+
+	return connections
+}
+
+func (s *Server) SendMessage(data string) {
+	for _, client := range s.clients {
+		client.sendData(data)
+	}
+}
+
+func (c *Client) sendData(data string) {
+	c.conn.Write([]byte(data))
 }
